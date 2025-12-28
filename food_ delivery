@@ -1,0 +1,38 @@
+import pandas as pd
+import numpy as np
+
+df = pd.read_csv("ONINE_FOOD_DELIVERY_ANALYSIS.csv")
+df.head()
+df.shape
+df.info()
+df.describe()
+df.isnull().sum()
+# Numerical
+num_cols = df.select_dtypes(include=np.number).columns
+df[num_cols] = df[num_cols].fillna(df[num_cols].median())
+
+# Categorical
+cat_cols = df.select_dtypes(include='object').columns
+df[cat_cols] = df[cat_cols].fillna(df[cat_cols].mode().iloc[0])
+# Ratings > 5
+df.loc[df['delivery_rating'] > 5, 'delivery_rating'] = 5
+
+# Negative profit
+df['profit'] = df['profit'].clip(lower=0)
+Q1 = df['delivery_time'].quantile(0.25)
+Q3 = df['delivery_time'].quantile(0.75)
+IQR = Q3 - Q1
+
+df = df[(df['delivery_time'] >= Q1 - 1.5*IQR) &
+        (df['delivery_time'] <= Q3 + 1.5*IQR)]
+# Weekend / Weekday
+df['order_day_type'] = np.where(df['order_day'].isin(['Saturday','Sunday']),
+                                'Weekend','Weekday')
+
+# Peak Hour
+df['is_peak_hour'] = np.where(df['order_hour'].between(12,15) |
+                               df['order_hour'].between(19,22), 1, 0)
+
+# Profit 
+df['profit_margin_pct'] = (df['profit'] / df['order_value']) * 100
+df.to_csv("cleaned_food_delivery_data.csv", index=False)
